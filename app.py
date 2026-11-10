@@ -358,16 +358,16 @@ elif menu == "Pembelian":
 
             else:
                 tambah_transaksi(
-                    tanggal,
-                    "Pembelian",
-                    nama_barang,
-                    kategori,
-                    jumlah,
-                    satuan,
-                    harga,
-                    total,
-                    catatan,
-                    diskon
+                    tanggal=tanggal,
+                    jenis="Pembelian",
+                    keterangan=nama_barang,
+                    kategori=kategori,
+                    jumlah=jumlah,
+                    satuan=satuan,
+                    harga=harga,
+                    total=total,
+                    catatan=catatan,
+                    diskon=diskon
                 )
 
                 st.success("Pembelian berhasil disimpan!")
