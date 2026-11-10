@@ -278,7 +278,6 @@ if menu == "Sisa Saldo":
 elif menu == "Pembelian":
 
     st.title("🛒 Input Pembelian")
-    st.write("Catat barang atau kebutuhan yang dibeli.")
 
     with st.form("form_pembelian"):
 
@@ -287,10 +286,7 @@ elif menu == "Pembelian":
             value=date.today()
         )
 
-        nama_barang = st.text_input(
-            "Nama Barang",
-            placeholder="Contoh: Telur, Beras, Minyak"
-        )
+        nama_barang = st.text_input("Nama Barang")
 
         col1, col2 = st.columns(2)
 
@@ -309,30 +305,41 @@ elif menu == "Pembelian":
             jumlah = st.number_input(
                 "Jumlah",
                 min_value=0.0,
-                value=1.0,
-                step=1.0
+                value=1.0
             )
 
             satuan = st.selectbox(
                 "Satuan",
-                ["Kg", "Gram", "Liter", "Pcs", "Bungkus", "Dus", "Lainnya"]
+                ["Kg", "Gram", "Liter", "Pcs",
+                 "Bungkus", "Dus", "Lainnya"]
             )
 
         with col2:
             harga = st.number_input(
-                "Harga per Satuan (Rp)",
+                "Harga Satuan (Rp)",
                 min_value=0,
                 step=1000
             )
 
-            total = jumlah * harga
-
-            st.metric(
-                "Total Pembelian",
-                rupiah(total)
+            diskon = st.number_input(
+                "Diskon (Rp)",
+                min_value=0,
+                step=1000
             )
 
-        catatan = st.text_area("Catatan (Opsional)")
+        subtotal = jumlah * harga
+        total = subtotal - diskon
+
+        st.divider()
+
+        st.write("Subtotal:", rupiah(subtotal))
+        st.write("Diskon:", rupiah(diskon))
+
+        st.subheader(
+            f"Total Bayar: {rupiah(total)}"
+        )
+
+        catatan = st.text_area("Catatan")
 
         submit = st.form_submit_button(
             "Simpan Pembelian",
@@ -342,8 +349,13 @@ elif menu == "Pembelian":
         if submit:
             if not nama_barang.strip():
                 st.error("Nama barang harus diisi.")
+
             elif jumlah <= 0 or harga <= 0:
                 st.error("Jumlah dan harga harus lebih dari 0.")
+
+            elif diskon > subtotal:
+                st.error("Diskon tidak boleh melebihi subtotal.")
+
             else:
                 tambah_transaksi(
                     tanggal,
@@ -354,7 +366,8 @@ elif menu == "Pembelian":
                     satuan,
                     harga,
                     total,
-                    catatan
+                    catatan,
+                    diskon
                 )
 
                 st.success("Pembelian berhasil disimpan!")
