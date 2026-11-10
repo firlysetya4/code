@@ -90,6 +90,7 @@ menu = st.sidebar.radio(
     "Pilih Menu",
     [
         "Dashboard",
+        "Sisa Saldo",
         "Pembelian",
         "Pemasukan",
         "Pengeluaran Belanja",
@@ -202,6 +203,73 @@ if menu == "Dashboard":
         )
     else:
         st.info("Belum ada data transaksi.")
+
+if menu == "Sisa Saldo":
+
+    st.title("💰 Dashboard Keuangan")
+
+    total_pemasukan = df.loc[
+        df["jenis"] == "Pemasukan", "total"
+    ].sum()
+
+    total_pembelian = df.loc[
+        df["jenis"] == "Pembelian", "total"
+    ].sum()
+
+    total_pengeluaran = df.loc[
+        df["jenis"] == "Pengeluaran", "total"
+    ].sum()
+
+    total_keluar = total_pembelian + total_pengeluaran
+
+    saldo = total_pemasukan - total_keluar
+
+    st.subheader("Ringkasan Keuangan")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(
+            "Total Uang Masuk",
+            rupiah(total_pemasukan)
+        )
+
+        st.metric(
+            "Total Pembelian",
+            rupiah(total_pembelian)
+        )
+
+    with col2:
+        st.metric(
+            "Pengeluaran Lainnya",
+            rupiah(total_pengeluaran)
+        )
+
+        st.metric(
+            "Total Pengeluaran",
+            rupiah(total_keluar)
+        )
+
+    st.divider()
+
+    st.subheader("💵 SISA UANG SAAT INI")
+
+    st.markdown(
+        f"""
+        <div style="
+            background-color:#d1fae5;
+            padding:25px;
+            border-radius:15px;
+            text-align:center;
+        ">
+            <h3 style="color:#065f46;">Saldo Tersisa</h3>
+            <h1 style="color:#047857;">
+                {rupiah(saldo)}
+            </h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ==========================================
 # MENU PEMBELIAN
