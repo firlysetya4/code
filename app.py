@@ -43,24 +43,40 @@ def create_database():
     conn.close()
 
 def tambah_transaksi(
-    tanggal, jenis, keterangan, kategori,
-    jumlah, satuan, harga, total, catatan
+    tanggal,
+    jenis,
+    keterangan,
+    kategori,
+    jumlah,
+    satuan,
+    harga,
+    total,
+    catatan,
+    diskon=0
 ):
     conn = get_connection()
 
     conn.execute("""
-        INSERT INTO transaksi
-        (tanggal, jenis, keterangan, kategori,
-         jumlah, satuan, harga, total, catatan)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO transaksi (
+            tanggal, jenis, keterangan, kategori,
+            jumlah, satuan, harga, diskon, total, catatan
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        str(tanggal), jenis, keterangan, kategori,
-        jumlah, satuan, harga, total, catatan
+        str(tanggal),
+        jenis,
+        keterangan,
+        kategori,
+        jumlah,
+        satuan,
+        harga,
+        diskon,
+        total,
+        catatan
     ))
 
     conn.commit()
     conn.close()
-
 def ambil_data():
     conn = get_connection()
     df = pd.read_sql_query(
