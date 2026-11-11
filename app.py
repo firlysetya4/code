@@ -43,40 +43,24 @@ def create_database():
     conn.close()
 
 def tambah_transaksi(
-    tanggal,
-    jenis,
-    keterangan,
-    kategori,
-    jumlah,
-    satuan,
-    harga,
-    total,
-    catatan,
-    diskon=0
+    tanggal, jenis, keterangan, kategori,
+    jumlah, satuan, harga, total, catatan
 ):
     conn = get_connection()
 
     conn.execute("""
-        INSERT INTO transaksi (
-            tanggal, jenis, keterangan, kategori,
-            jumlah, satuan, harga, diskon, total, catatan
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO transaksi
+        (tanggal, jenis, keterangan, kategori,
+         jumlah, satuan, harga, total, catatan)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        str(tanggal),
-        jenis,
-        keterangan,
-        kategori,
-        jumlah,
-        satuan,
-        harga,
-        diskon,
-        total,
-        catatan
+        str(tanggal), jenis, keterangan, kategori,
+        jumlah, satuan, harga, total, catatan
     ))
 
     conn.commit()
     conn.close()
+
 def ambil_data():
     conn = get_connection()
     df = pd.read_sql_query(
@@ -106,7 +90,6 @@ menu = st.sidebar.radio(
     "Pilih Menu",
     [
         "Dashboard",
-        "Sisa Saldo",
         "Pembelian",
         "Pemasukan",
         "Pengeluaran Belanja",
@@ -220,73 +203,6 @@ if menu == "Dashboard":
     else:
         st.info("Belum ada data transaksi.")
 
-if menu == "Sisa Saldo":
-
-    st.title("💰 Dashboard Keuangan")
-
-    total_pemasukan = df.loc[
-        df["jenis"] == "Pemasukan", "total"
-    ].sum()
-
-    total_pembelian = df.loc[
-        df["jenis"] == "Pembelian", "total"
-    ].sum()
-
-    total_pengeluaran = df.loc[
-        df["jenis"] == "Pengeluaran", "total"
-    ].sum()
-
-    total_keluar = total_pembelian + total_pengeluaran
-
-    saldo = total_pemasukan - total_keluar
-
-    st.subheader("Ringkasan Keuangan")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.metric(
-            "Total Uang Masuk",
-            rupiah(total_pemasukan)
-        )
-
-        st.metric(
-            "Total Pembelian",
-            rupiah(total_pembelian)
-        )
-
-    with col2:
-        st.metric(
-            "Pengeluaran Lainnya",
-            rupiah(total_pengeluaran)
-        )
-
-        st.metric(
-            "Total Pengeluaran",
-            rupiah(total_keluar)
-        )
-
-    st.divider()
-
-    st.subheader("💵 SISA UANG SAAT INI")
-
-    st.markdown(
-        f"""
-        <div style="
-            background-color:#d1fae5;
-            padding:25px;
-            border-radius:15px;
-            text-align:center;
-        ">
-            <h3 style="color:#065f46;">Saldo Tersisa</h3>
-            <h1 style="color:#047857;">
-                {rupiah(saldo)}
-            </h1>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
 # ==========================================
 # MENU PEMBELIAN
 # ==========================================
@@ -294,6 +210,7 @@ if menu == "Sisa Saldo":
 elif menu == "Pembelian":
 
     st.title("🛒 Input Pembelian")
+    st.write("Catat barang atau kebutuhan yang dibeli.")
 
     with st.form("form_pembelian"):
 
@@ -302,7 +219,10 @@ elif menu == "Pembelian":
             value=date.today()
         )
 
-        nama_barang = st.text_input("Nama Barang")
+        nama_barang = st.text_input(
+            "Nama Barang",
+            placeholder="Contoh: Telur, Beras, Minyak"
+        )
 
         col1, col2 = st.columns(2)
 
@@ -321,41 +241,30 @@ elif menu == "Pembelian":
             jumlah = st.number_input(
                 "Jumlah",
                 min_value=0.0,
-                value=1.0
+                value=1.0,
+                step=1.0
             )
 
             satuan = st.selectbox(
                 "Satuan",
-                ["Kg", "Gram", "Liter", "Pcs",
-                 "Bungkus", "Dus", "Lainnya"]
+                ["Kg", "Gram", "Liter", "Pcs", "Bungkus", "Dus", "Lainnya"]
             )
 
         with col2:
             harga = st.number_input(
-                "Harga Satuan (Rp)",
+                "Harga per Satuan (Rp)",
                 min_value=0,
                 step=1000
             )
 
-            diskon = st.number_input(
-                "Diskon (Rp)",
-                min_value=0,
-                step=1000
+            total = jumlah * harga
+
+            st.metric(
+                "Total Pembelian",
+                rupiah(total)
             )
 
-        subtotal = jumlah * harga
-        total = subtotal - diskon
-
-        st.divider()
-
-        st.write("Subtotal:", rupiah(subtotal))
-        st.write("Diskon:", rupiah(diskon))
-
-        st.subheader(
-            f"Total Bayar: {rupiah(total)}"
-        )
-
-        catatan = st.text_area("Catatan")
+        catatan = st.text_area("Catatan (Opsional)")
 
         submit = st.form_submit_button(
             "Simpan Pembelian",
@@ -365,13 +274,8 @@ elif menu == "Pembelian":
         if submit:
             if not nama_barang.strip():
                 st.error("Nama barang harus diisi.")
-
             elif jumlah <= 0 or harga <= 0:
                 st.error("Jumlah dan harga harus lebih dari 0.")
-
-            elif diskon > subtotal:
-                st.error("Diskon tidak boleh melebihi subtotal.")
-
             else:
                 tambah_transaksi(
                     tanggal,
@@ -382,8 +286,7 @@ elif menu == "Pembelian":
                     satuan,
                     harga,
                     total,
-                    catatan,
-                    diskon
+                    catatan
                 )
 
                 st.success("Pembelian berhasil disimpan!")
@@ -450,9 +353,9 @@ elif menu == "Pemasukan":
                     "Transaksi",
                     jumlah,
                     jumlah,
-                    catatan,
-                    0
+                    catatan
                 )
+
                 st.success("Pemasukan berhasil disimpan!")
                 st.rerun()
 
@@ -519,8 +422,7 @@ elif menu == "Pengeluaran Belanja":
                     "Transaksi",
                     jumlah,
                     jumlah,
-                    catatan,
-                    0
+                    catatan
                 )
 
                 st.success("Pengeluaran berhasil disimpan!")
