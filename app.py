@@ -374,16 +374,16 @@ elif menu == "Pembelian":
 
             else:
                 tambah_transaksi(
-                    tanggal=tanggal,
-                    jenis="Pembelian",
-                    keterangan=nama_barang,
-                    kategori=kategori,
-                    jumlah=jumlah,
-                    satuan=satuan,
-                    harga=harga,
-                    total=total,
-                    catatan=catatan,
-                    diskon=diskon
+                    tanggal,
+                    "Pembelian",
+                    nama_barang,
+                    kategori,
+                    jumlah,
+                    satuan,
+                    harga,
+                    total,
+                    catatan,
+                    diskon
                 )
 
                 st.success("Pembelian berhasil disimpan!")
@@ -450,9 +450,9 @@ elif menu == "Pemasukan":
                     "Transaksi",
                     jumlah,
                     jumlah,
-                    catatan
+                    catatan,
+                    0
                 )
-
                 st.success("Pemasukan berhasil disimpan!")
                 st.rerun()
 
@@ -519,7 +519,8 @@ elif menu == "Pengeluaran Belanja":
                     "Transaksi",
                     jumlah,
                     jumlah,
-                    catatan
+                    catatan,
+                    0
                 )
 
                 st.success("Pengeluaran berhasil disimpan!")
