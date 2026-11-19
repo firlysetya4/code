@@ -1,76 +1,112 @@
 import streamlit as st
 import pandas as pd
-import os
-from datetime import datetime
+import sqlite3
+from datetime import date
 
-# Nama file penyimpanan
-DATA_FILE = "data_keuangan.csv"
+# ===============================
+# Setup koneksi database SQLite
+# ===============================
 
-# Fungsi untuk load data dari file csv, jika tidak ada buat dataframe kosong
-def load_data():
-    if os.path.exists(DATA_FILE):
-        df = pd.read_csv(DATA_FILE, parse_dates=['Tanggal'])
-    else:
-        df = pd.DataFrame(columns=['Tanggal','Item','Harga','Satuan','Diskon','Keterangan','Tipe','Total'])
+DB_NAME = "keuangan.db"
+
+def get_connection():
+    conn = sqlite3.connect(DB_NAME)
+    return conn
+
+def create_table():
+    with get_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS transaksi (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tanggal TEXT,
+                tipe TEXT,
+                item TEXT,
+                harga REAL,
+                satuan INTEGER,
+                diskon REAL,
+                keterangan TEXT,
+                total REAL
+            )
+        """)
+create_table()
+
+# ===============================
+# Fungsi tambah transaksi
+# ===============================
+def tambah_transaksi(tanggal, tipe, item, harga, satuan, diskon, keterangan):
+    subtotal = harga * satuan
+    total = subtotal - diskon
+    if total < 0:
+        st.error("Diskon tidak boleh lebih besar dari subtotal!")
+        return
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO transaksi (tanggal, tipe, item, harga, satuan, diskon, keterangan, total)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (tanggal, tipe, item, harga, satuan, diskon, keterangan, total))
+
+# ===============================
+# Fungsi ambil semua data
+# ===============================
+def ambil_data():
+    with get_connection() as conn:
+        df = pd.read_sql_query("SELECT * FROM transaksi ORDER BY tanggal DESC, id DESC", conn)
     return df
 
-# Fungsi untuk simpan data ke csv
-def save_data(df):
-    df.to_csv(DATA_FILE, index=False)
-
-# Hitung total harga per transaksi
-def hitung_total(harga, satuan, diskon):
-    total = (harga * satuan) - diskon
-    return max(total, 0)  # jangan sampai negatif
-
+# ===============================
+# Streamlit UI
+# ===============================
 st.title("Aplikasi Keuangan Sederhana")
 
-# Load data transaksi
-data = load_data()
+menu = st.sidebar.selectbox("Menu", ["Dashboard", "Input Transaksi", "Riwayat Transaksi"])
 
-# Form input data transaksi baru
-with st.form("form_input"):
-    st.subheader("Input Data Transaksi Baru")
-    tanggal = st.date_input("Tanggal", datetime.today())
-    item = st.text_input("Item")
-    harga = st.number_input("Harga per satuan (Rp)", min_value=0, format="%d")
-    satuan = st.number_input("Jumlah satuan", min_value=1, format="%d")
-    diskon = st.number_input("Diskon (Rp)", min_value=0, format="%d")
-    keterangan = st.text_area("Keterangan")
-    tipe = st.selectbox("Tipe Transaksi", ["Pemasukan", "Pengeluaran"])
-    submitted = st.form_submit_button("Simpan Data")
+if menu == "Input Transaksi":
+    st.header("Input Transaksi Baru")
+    with st.form("form_input"):
+        tanggal = st.date_input("Tanggal", date.today())
+        tipe = st.selectbox("Tipe", ["Pemasukan", "Pengeluaran"])
+        item = st.text_input("Item")
+        harga = st.number_input("Harga per satuan (Rp)", min_value=0.0, step=1000.0)
+        satuan = st.number_input("Jumlah satuan", min_value=1, step=1)
+        diskon = st.number_input("Diskon (Rp)", min_value=0.0, step=1000.0)
+        keterangan = st.text_area("Keterangan")
+        submitted = st.form_submit_button("Simpan")
 
-    if submitted:
-        total = hitung_total(harga, satuan, diskon)
-        new_data = {
-            'Tanggal': tanggal,
-            'Item': item,
-            'Harga': harga,
-            'Satuan': satuan,
-            'Diskon': diskon,
-            'Keterangan': keterangan,
-            'Tipe': tipe,
-            'Total': total
-        }
-        data = data.append(new_data, ignore_index=True)
-        save_data(data)
-        st.success("Transaksi berhasil disimpan!")
+        if submitted:
+            if item.strip() == "":
+                st.error("Nama item wajib diisi!")
+            else:
+                tambah_transaksi(str(tanggal), tipe, item, harga, satuan, diskon, keterangan)
+                st.success("Transaksi berhasil disimpan!")
 
-# Dashboard dan Ringkasan
-st.subheader("Dashboard Ringkasan Keuangan")
+elif menu == "Dashboard":
+    st.header("Dashboard Ringkasan")
+    df = ambil_data()
 
-if not data.empty:
-    total_pemasukan = data.loc[data['Tipe'] == 'Pemasukan', 'Total'].sum()
-    total_pengeluaran = data.loc[data['Tipe'] == 'Pengeluaran', 'Total'].sum()
-    saldo = total_pemasukan - total_pengeluaran
+    if df.empty:
+        st.info("Belum ada data transaksi.")
+    else:
+        pemasukan = df.loc[df["tipe"] == "Pemasukan", "total"].sum()
+        pengeluaran = df.loc[df["tipe"] == "Pengeluaran", "total"].sum()
+        saldo = pemasukan - pengeluaran
 
-    st.metric("Saldo Saat Ini (Rp)", f"{saldo:,}")
-    st.metric("Total Pemasukan (Rp)", f"{total_pemasukan:,}")
-    st.metric("Total Pengeluaran (Rp)", f"{total_pengeluaran:,}")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Pemasukan (Rp)", f"{pemasukan:,.0f}".replace(",", "."))
+        col2.metric("Total Pengeluaran (Rp)", f"{pengeluaran:,.0f}".replace(",", "."))
+        col3.metric("Saldo (Rp)", f"{saldo:,.0f}".replace(",", "."))
 
-    st.subheader("Riwayat Transaksi")
-    # Tampilkan data terbaru paling atas
-    st.dataframe(data.sort_values(by='Tanggal', ascending=False).reset_index(drop=True))
-else:
-    st.info("Belum ada data transaksi. Silakan input data di atas.")
+elif menu == "Riwayat Transaksi":
+    st.header("Riwayat Transaksi")
+    df = ambil_data()
 
+    if df.empty:
+        st.info("Belum ada data transaksi.")
+    else:
+        tipe_filter = st.selectbox("Filter Tipe Transaksi", ["Semua", "Pemasukan", "Pengeluaran"])
+        if tipe_filter != "Semua":
+            df = df[df["tipe"] == tipe_filter]
+
+        st.dataframe(df[["id","tanggal","tipe","item","harga","satuan","diskon","total","keterangan"]].sort_values(by=["tanggal","id"], ascending=[False, False]))
+
+        csv = df.to_csv(index=False).encode("utf-8-sig")
+        st.download_button("Download CSV", data=csv, file_name="riwayat_transaksi.csv", mime="text/csv")
